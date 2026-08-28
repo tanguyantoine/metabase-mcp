@@ -19,6 +19,8 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.middleware.error_handling import ErrorHandlingMiddleware
 from fastmcp.server.middleware.logging import LoggingMiddleware
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 # Load environment variables
 load_dotenv()
@@ -66,6 +68,12 @@ mcp = FastMCP(
 # Add middleware for enhanced error handling and logging
 mcp.add_middleware(ErrorHandlingMiddleware())  # Handle errors first
 mcp.add_middleware(LoggingMiddleware())  # Log all operations
+
+
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
+
 
 enabled_tools: set[str] | None = None
 if METABASE_TOOLS_ALLOWLIST is not None:
