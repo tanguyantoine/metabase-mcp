@@ -83,6 +83,14 @@ uv sync
 uv run python server.py
 ```
 
+#### Option 4: Run with Docker (GHCR)
+```bash
+docker run --rm -it \
+  -e METABASE_URL=https://your-instance.com \
+  -e METABASE_API_KEY=your-api-key \
+  ghcr.io/tanguyantoine/metabase-mcp:latest
+```
+
 ## Configuration
 
 Create a `.env` file with your Metabase credentials:
@@ -110,6 +118,13 @@ METABASE_PASSWORD=your-password
 ```env
 METABASE_HTTP_TIMEOUT=30.0  # Default: 30.0 seconds
 ```
+
+#### Optional: Restrict Enabled MCP Tools at Startup
+```env
+METABASE_TOOLS_ALLOWLIST=list_databases,execute_query
+```
+If this variable is set, only the listed tools are registered.  
+Use a comma-separated list of tool names exactly as shown in the **Available Tools** section.
 
 #### Optional: Custom Host/Port for SSE/HTTP
 ```env
@@ -144,6 +159,18 @@ uv run python server.py --http
 # Custom host and port via environment variables
 HOST=localhost PORT=9000 uv run python server.py --sse
 HOST=192.168.1.100 PORT=8080 uv run python server.py --http
+```
+
+#### Docker Usage
+```bash
+# Build locally
+docker build -t metabase-mcp .
+
+# Run with HTTP transport (default in container)
+docker run --rm -p 8000:8000 \
+  -e METABASE_URL=https://your-instance.com \
+  -e METABASE_API_KEY=your-api-key \
+  metabase-mcp
 ```
 
 ### Cursor Integration
