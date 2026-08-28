@@ -362,7 +362,7 @@ async def execute_mongodb_query(
         # Convert query to JSON string if it's not already a string
         if isinstance(query, (list, dict)):
             query_string = json.dumps(query)
-            await ctx.debug(f"Converted query object to JSON string")
+            await ctx.debug("Converted query object to JSON string")
         else:
             query_string = str(query)
 
