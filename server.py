@@ -9,6 +9,7 @@ execute queries, manage cards, and work with collections.
 import logging
 import os
 import sys
+from collections.abc import Callable
 from enum import Enum
 from typing import Any
 
@@ -32,6 +33,7 @@ METABASE_USER_EMAIL = os.getenv("METABASE_USER_EMAIL")
 METABASE_PASSWORD = os.getenv("METABASE_PASSWORD")
 METABASE_API_KEY = os.getenv("METABASE_API_KEY")
 METABASE_HTTP_TIMEOUT = os.getenv("METABASE_HTTP_TIMEOUT", "30.0")
+METABASE_TOOLS_ALLOWLIST = os.getenv("METABASE_TOOLS_ALLOWLIST")
 
 try:
     METABASE_HTTP_TIMEOUT_SECONDS = float(METABASE_HTTP_TIMEOUT)
@@ -64,6 +66,25 @@ mcp = FastMCP(
 # Add middleware for enhanced error handling and logging
 mcp.add_middleware(ErrorHandlingMiddleware())  # Handle errors first
 mcp.add_middleware(LoggingMiddleware())  # Log all operations
+
+enabled_tools: set[str] | None = None
+if METABASE_TOOLS_ALLOWLIST is not None:
+    enabled_tools = {
+        tool_name.strip() for tool_name in METABASE_TOOLS_ALLOWLIST.split(",") if tool_name.strip()
+    }
+    if not enabled_tools:
+        raise ValueError(
+            "METABASE_TOOLS_ALLOWLIST is set but empty. Provide a comma-separated tool list."
+        )
+
+
+def register_tool(func: Callable[..., Any]) -> Callable[..., Any]:
+    if enabled_tools is not None and func.__name__ not in enabled_tools:
+        logger.info(
+            "Skipping MCP tool '%s' because it is not in METABASE_TOOLS_ALLOWLIST", func.__name__
+        )
+        return func
+    return mcp.tool(func)
 
 
 class MetabaseClient:
@@ -146,7 +167,7 @@ metabase_client = MetabaseClient()
 # Tool Definitions - Database Operations
 # =============================================================================
 
-@mcp.tool
+@register_tool
 async def list_databases(ctx: Context) -> dict[str, Any]:
     """
     List all databases configured in Metabase.
@@ -165,7 +186,7 @@ async def list_databases(ctx: Context) -> dict[str, Any]:
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def list_tables(database_id: int, ctx: Context) -> str:
     """
     List all tables in a specific database.
@@ -231,7 +252,7 @@ async def list_tables(database_id: int, ctx: Context) -> str:
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def get_table_fields(table_id: int, ctx: Context, limit: int = 20) -> dict[str, Any]:
     """
     Get all fields/columns in a specific table.
@@ -269,7 +290,7 @@ async def get_table_fields(table_id: int, ctx: Context, limit: int = 20) -> dict
 # Tool Definitions - Query Operations
 # =============================================================================
 
-@mcp.tool
+@register_tool
 async def execute_query(
     database_id: int,
     query: str,
@@ -313,7 +334,7 @@ async def execute_query(
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def execute_mongodb_query(
     database_id: int,
     collection: str,
@@ -374,7 +395,7 @@ async def execute_mongodb_query(
 # Tool Definitions - Card/Question Operations
 # =============================================================================
 
-@mcp.tool
+@register_tool
 async def list_cards(ctx: Context) -> dict[str, Any]:
     """
     List all saved questions/cards in Metabase.
@@ -394,7 +415,7 @@ async def list_cards(ctx: Context) -> dict[str, Any]:
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def execute_card(
     card_id: int,
     ctx: Context,
@@ -429,7 +450,7 @@ async def execute_card(
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def create_card(
     name: str,
     database_id: int,
@@ -484,7 +505,7 @@ async def create_card(
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def create_mongodb_card(
     name: str,
     database_id: int,
@@ -544,7 +565,7 @@ async def create_mongodb_card(
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def update_card_display(
     card_id: int,
     display: str,
@@ -585,7 +606,7 @@ async def update_card_display(
 # Tool Definitions - Dashboard Operations
 # =============================================================================
 
-@mcp.tool
+@register_tool
 async def list_dashboards(ctx: Context) -> list[dict[str, Any]]:
     """
     List all dashboards in Metabase.
@@ -606,7 +627,7 @@ async def list_dashboards(ctx: Context) -> list[dict[str, Any]]:
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def get_dashboard_cards(dashboard_id: int, ctx: Context) -> list[dict[str, Any]]:
     """
     Get the cards and their layout information for a specific dashboard.
@@ -655,7 +676,7 @@ async def get_dashboard_cards(dashboard_id: int, ctx: Context) -> list[dict[str,
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def add_card_to_dashboard(
     dashboard_id: int,
     card_id: int,
@@ -727,7 +748,7 @@ async def add_card_to_dashboard(
 # Tool Definitions - Collection Operations
 # =============================================================================
 
-@mcp.tool
+@register_tool
 async def list_collections(ctx: Context) -> dict[str, Any]:
     """
     List all collections in Metabase.
@@ -747,7 +768,7 @@ async def list_collections(ctx: Context) -> dict[str, Any]:
         raise ToolError(error_msg) from e
 
 
-@mcp.tool
+@register_tool
 async def create_collection(
     name: str,
     ctx: Context,
